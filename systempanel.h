@@ -32,7 +32,6 @@ private slots:
     void readSerial();
     void handleAction1();
     void handleAction2();
-    void updateLCD(const QString);
     void makePlot();
     void realTimeDataSlot();
 private:

@@ -35,11 +35,11 @@ SystemPanel::SystemPanel(QWidget *parent)
             }
         }
     }
-
+    //postavke koje se postave ak je arduino dostupni
     if(arduino_is_available){
         arduino->setPortName(arduino_port_name);
         arduino->open(QSerialPort::ReadOnly);
-        arduino->setBaudRate(QSerialPort::Baud9600);
+        arduino->setBaudRate(QSerialPort::Baud19200);
         arduino->setDataBits(QSerialPort::Data8);
         arduino->setParity(QSerialPort::NoParity);
         arduino->setStopBits(QSerialPort::OneStop);
@@ -65,7 +65,6 @@ SystemPanel::~SystemPanel()
 {
     if(arduino->isOpen()){
         arduino->close();
-        QMessageBox::information(this, "Closing Port", "Port successfully closed.");
     }
     delete ui;
 }
@@ -74,29 +73,8 @@ SystemPanel::~SystemPanel()
 
 void SystemPanel::readSerial()
 {
-    const int dataSize = 4;  // Assuming you are receiving 4-byte integers
-    char rawBuffer[dataSize];
-
-    qint64 bytesRead = arduino->read(rawBuffer, dataSize);
-
-    if (bytesRead == dataSize)
-    {
-        // Successfully read 4 bytes, process the raw data as an integer
-        int receivedInt;
-        memcpy(&receivedInt, rawBuffer, sizeof(int));
-
-        qDebug() << "Received integer from Arduino: " << receivedInt;
-
-        // Update your LCD or perform other actions based on the processed data
-        updateLCD(QString::number(receivedInt));
-    }
-    else
-    {
-        qDebug() << "Error reading data from Arduino. Bytes read:" << bytesRead;
-    }
-}
-void SystemPanel::updateLCD(const QString sensor_reading){
-    ui->lcdNumber->display(sensor_reading);
+    QByteArray serialData = arduino->readLine();
+    qDebug() << "Received data from Arduino: " << serialData;
 }
 
 void SystemPanel::handleAction1(){
@@ -155,9 +133,9 @@ void SystemPanel::makePlot()
 
     //blend boja
     ui->customPlot->yAxis->grid()->setPen(QPen(gridColor, 0.6));
-
+    //timer
     QTimer *dataTimer = new QTimer(this);
-    dataTimer->setInterval(0);
+    dataTimer->setInterval(3);
     dataTimer->setSingleShot(false);
     connect(dataTimer, SIGNAL(timeout()), this, SLOT(realTimeDataSlot()));
     dataTimer->start();
@@ -166,10 +144,10 @@ void SystemPanel::makePlot()
 void SystemPanel::realTimeDataSlot() {
     static QTime time(QTime::currentTime());
     double key = time.msecsTo(QTime::currentTime()) / 1000.0;
-
+    //čitaj serial
     QByteArray serialData = arduino->readLine();
     QString sensor_reading(serialData);
-
+    //pretvorba
     bool conversionOk;
     double yValue = sensor_reading.toDouble(&conversionOk);
 
@@ -183,8 +161,6 @@ void SystemPanel::realTimeDataSlot() {
             return;
         }
     }
-
-
     yValues.prepend(yValue);
     while (yValues.size() > 5) {
         yValues.removeLast();
@@ -201,4 +177,3 @@ void SystemPanel::realTimeDataSlot() {
     ui->customPlot->xAxis->setRange(key, 8, Qt::AlignRight);
     ui->customPlot->replot();
 }
-
